@@ -1,14 +1,6 @@
 #!/bin/bash
 
-# 给光光写的pt三件套脚本
 
-echo "+---------------------------------------------+"
-echo "|   SSSS   GGGG  W   W  SSSS                  |"
-echo "|  S      G      W   W  S                     |"
-echo "|   SSS   G  GG  W W W   SSS                  |"
-echo "|      S  G   G  W W W      S                 |"
-echo "|  SSSS    GGG    W W   SSSS                  |"
-echo "+---------------------------------------------+"
 
 echo "+---------------------------------------------+"
 echo "| 正在安装必要的工具                          |"

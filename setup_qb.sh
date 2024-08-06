@@ -1,14 +1,8 @@
 #!/bin/bash
 
-# 给光光写的pt三件套脚本
 
-echo "+---------------------------------------------+"
-echo "|   SSSS   GGGG  W   W  SSSS                  |"
-echo "|  S      G      W   W  S                     |"
-echo "|   SSS   G  GG  W W W   SSS                  |"
-echo "|      S  G   G  W W W      S                 |"
-echo "|  SSSS    GGG    W W   SSSS                  |"
-echo "+---------------------------------------------+"
+
+
 
 echo "+---------------------------------------------+"
 echo "| 正在安装必要的工具                          |"
@@ -42,7 +36,7 @@ timedatectl set-timezone Asia/Shanghai
 echo "+---------------------------------------------+"
 echo "| 正在下载qb.tar.gz...                         |"
 echo "+---------------------------------------------+"
-wget -P /root/qb  https://github.com/lifujie25/lifj/raw/main/qb_admin.tar.gz
+wget -P /root/qb  https://github.com/lifujie25/lifj/raw/main/qb.tar.gz
 
 if [ $? -ne 0 ]; then
     echo "下载qb.tar.gz失败，脚本退出"
