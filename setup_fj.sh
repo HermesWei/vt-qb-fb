@@ -66,9 +66,9 @@ fi
 echo "+---------------------------------------------+"
 echo "| 构建Docker容器                              |"
 echo "+---------------------------------------------+"
-docker run -d --name vertex --restart unless-stopped --network host -v /root/sgws/vertex:/vertex -e TZ=Asia/Shanghai lswl/vertex:stable
-docker run -d --name qbittorrent --net=host -e PUID=1000 -e PGID=1000 -e TZ=Asia/Shanghai -e WEBUI_PORT=8989 -p 8989:8989 -p 45000:45000 -p 45000:45000/udp -v /root/qb/config:/config -v /home/downloads:/downloads -v /root:/root --restart unless-stopped lscr.io/linuxserver/qbittorrent:14.3.9 
-docker run -d --name filebrowser --restart=unless-stopped -e PUID=1000 -e PGID=1000 -e WEB_PORT=18082 -e FB_AUTH_SERVER_ADDR=127.0.0.1 -p 18082:18082 -v /root/sgws/fb/config:/config -v /home/downloads:/myfiles --mount type=tmpfs,destination=/tmp 80x86/filebrowser
+docker run -d --name vertex --restart unless-stopped --network host -v /root/fj_admin/vertex:/vertex -e TZ=Asia/Shanghai lswl/vertex:stable
+docker run -d --name qbittorrent --net=host -e PUID=1000 -e PGID=1000 -e TZ=Asia/Shanghai -e WEBUI_PORT=8989 -p 8989:8989 -p 45000:45000 -p 45000:45000/udp -v /root/fj_admin/qb/config:/config -v /home/downloads:/downloads -v /root:/root --restart unless-stopped lscr.io/linuxserver/qbittorrent:14.3.9 
+docker run -d --name filebrowser --restart=unless-stopped -e PUID=1000 -e PGID=1000 -e WEB_PORT=18082 -e FB_AUTH_SERVER_ADDR=127.0.0.1 -p 18082:18082 -v /root/fj_admin/fb/config:/config -v /home/downloads:/myfiles --mount type=tmpfs,destination=/tmp 80x86/filebrowser
 
 echo "+---------------------------------------------+"
 echo "| 重启所有Docker容器                          |"
