@@ -37,7 +37,6 @@ def set_defaults():
         log_file = "/home/pt/pic.log"
     save_config()
 
-
 # 保存配置到文件
 def save_config():
     with open(config_file, 'w') as f:
@@ -213,7 +212,7 @@ html_template = """
         <label for="output_folder">输出文件夹:</label>
         <input type="text" id="output_folder" name="output_folder" value="{{ output_folder }}"><br><br>
         <label for="log_file">日志文件:</label>
-        <input type="text" id="log_file" name="log_file" value="{{ log_file }}"><br><br>
+        <input type="text"         id="log_file" name="log_file" value="{{ log_file }}"><br><br>
         <input type="submit" value="更新路径">
     </form>
     <button onclick="location.reload()">刷新页面</button>
@@ -221,7 +220,7 @@ html_template = """
 
     <h2>处理过的文件夹</h2>
     <table border="1">
-                <tr>
+        <tr>
             <th>文件夹名称</th>
             <th>缩略图</th>
             <th>复制缩略图链接</th>
@@ -229,7 +228,7 @@ html_template = """
             <th>复制 mediainfo 内容</th>
             <th>操作</th>
         </tr>
-                {% for folder in folders %}
+        {% for folder in folders %}
         <tr>
             <td>{{ folder.folder_name }}</td>
             <td>
@@ -303,7 +302,8 @@ def process_folder(root, files):
     video_files = [os.path.join(root, f) for f in files if f.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.flv'))]
 
     if not video_files:
-        print(f"文件夹 {folder_name} 中没有找到视频文件，跳过处理。")
+        print(f"文件夹 {folder_name} 中没有找到视频文件，仍然创建文件夹。")
+        log_entry(log_entry_text)  # 即使没有视频文件，也记录文件夹已处理过
         return
 
     video_file = random.choice(video_files)
@@ -313,14 +313,13 @@ def process_folder(root, files):
     process_video(video_file, video_name, folder_output_path)
     log_entry(log_entry_text)
 
-# 确保在 process_videos 函数中正确调用 process_folder
 @app.route('/process_videos', methods=['GET'])
 def process_videos():
     # 检查并删除已删除的文件夹及其对应的记录和输出
     clean_deleted_folders()
     
     for root, dirs, files in os.walk(video_folder):
-        if Path(root).parent == Path(video_folder):
+        if Path(root).parent == Path(video_folder) or Path(root) == Path(video_folder):
             process_folder(root, files)
 
     folders = get_processed_folders()
@@ -351,6 +350,7 @@ def clean_deleted_folders():
                 else:
                     print(f"删除了日志中的记录: {folder_name}")
 
+                    
 # 定义 delete_generated_files 函数
 def delete_generated_files(folder_output_path):
     if os.path.exists(folder_output_path):
@@ -359,7 +359,6 @@ def delete_generated_files(folder_output_path):
         os.rmdir(folder_output_path)
         print(f"已删除 {folder_output_path} 文件夹及其内容")
 
-    
 @app.route('/delete_folder', methods=['POST'])
 def delete_folder():
     folder_path = request.form['folder_path']
