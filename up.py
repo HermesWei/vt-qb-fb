@@ -8,9 +8,9 @@ from flask import Flask, request, jsonify, render_template_string
 app = Flask(__name__)
 
 # 初始化路径为空
-video_folder = ""
-output_folder = ""
-log_file = ""
+video_folder = "/home/downloads"
+output_folder = "/home/pt"
+log_file = "/home/pt/pic.log"
 
 # 配置文件名
 config_file = "config.txt"
