@@ -8,9 +8,9 @@ from flask import Flask, request, jsonify, render_template_string
 app = Flask(__name__)
 
 # 初始化路径为空
-video_folder = "/home/downloads"
-output_folder = "/home/pt"
-log_file = "/home/pt/pic.log"
+video_folder = ""
+output_folder = ""
+log_file = ""
 
 # 配置文件名
 config_file = "config.txt"
@@ -26,6 +26,18 @@ def load_config():
                 output_folder = lines[1].strip()
                 log_file = lines[2].strip()
 
+# 检查并设置默认值
+def set_defaults():
+    global video_folder, output_folder, log_file
+    if not video_folder:
+        video_folder = "/home/downloads"
+    if not output_folder:
+        output_folder = "/home/pt"
+    if not log_file:
+        log_file = "/home/pt/pic.log"
+    save_config()
+
+
 # 保存配置到文件
 def save_config():
     with open(config_file, 'w') as f:
@@ -35,6 +47,7 @@ def save_config():
 
 # 调用时加载配置
 load_config()
+set_defaults()
 
 def log_entry(entry):
     with open(log_file, 'a') as log:
