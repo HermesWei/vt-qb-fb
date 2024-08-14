@@ -192,7 +192,7 @@ html_template = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>视频处理应用</title>
-<script>
+    <script>
     function copyText(button, text) {
         const textarea = document.createElement('textarea');
         textarea.value = text;
@@ -294,18 +294,18 @@ def update_paths():
 def process_folder(root, files):
     folder_name = os.path.basename(root)
     folder_output_path = os.path.join(output_folder, folder_name)
-    
-    video_files = [os.path.join(root, f) for f in files if f.lower().endswith(('.ts','.mp4', '.avi', '.mkv', '.mov', '.flv'))]
-
-    if not video_files:
-        print(f"文件夹 {folder_name} 中没有找到视频文件，跳过创建文件夹。")
-        return  # 直接返回，不创建文件夹也不记录日志
-
-    os.makedirs(folder_output_path, exist_ok=True)  # 只有在有视频文件时才创建输出文件夹
+    os.makedirs(folder_output_path, exist_ok=True)
 
     log_entry_text = f"处理文件夹: {folder_name}"
     if is_logged(log_entry_text, folder_output_path):
         print(f"{folder_name} 已经处理过，跳过...")
+        return
+
+    video_files = [os.path.join(root, f) for f in files if f.lower().endswith(('.ts','.mp4', '.avi', '.mkv', '.mov', '.flv'))]
+
+    if not video_files:
+        print(f"文件夹 {folder_name} 中没有找到视频文件，仍然创建文件夹。")
+        log_entry(log_entry_text)  # 即使没有视频文件，也记录文件夹已处理过
         return
 
     video_file = random.choice(video_files)
