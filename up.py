@@ -239,9 +239,9 @@ html_template = """
                 {% endfor %}
             </td>
             <td>
-                <button onclick="copyText(`{% for thumbnail in folder.thumbnails %}[img]{{ thumbnail }}[/img]\n{% endfor %}`)">
-                    一键复制所有缩略图链接
-                </button>
+                <button onclick="copyText(this, `{% for thumbnail in folder.thumbnails %}[img]{{ thumbnail }}[/img]\n{% endfor %}`)">
+    复制缩略图
+</button>
             </td>
             <td>
                 {% for mediainfo in folder.mediainfo_files %}
@@ -251,9 +251,9 @@ html_template = """
                 {% endfor %}
             </td>
             <td>
-                <button onclick="copyText(`{{ folder.mediainfo_content }}`)">
-                    复制 mediainfo 内容
-                </button>
+                <button onclick="copyText(this, `{{ folder.mediainfo_content }}`)">
+    复制 mediainfo
+</button>
             </td>
             <td>
                 <form action="/delete_folder" method="post">
