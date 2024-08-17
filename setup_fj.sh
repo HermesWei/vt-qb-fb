@@ -19,7 +19,10 @@ echo "| 正在安装Docker                              |"
 echo "+---------------------------------------------+"
 if ! command -v docker &> /dev/null; then
           echo "Docker 未安装,现在开始安装。"
-          
+           if ! command -v curl &> /dev/null; then
+          echo "curl 未安装,现在开始安装。"
+          sudo apt-get install -y curl
+        fi     
 curl -fsSL https://get.docker.com -o get-docker.sh
 sh get-docker.sh
       fi 
