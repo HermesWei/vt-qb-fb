@@ -223,11 +223,13 @@ html_template = """
                         </button>
                     </td>
                     <td>
+                    <p class="p">
                         {% for mediainfo in folder.mediainfo_files %}
-                        <a href="{{ folder.folder_path }}/{{ mediainfo }}" target="_blank">
+                        
                             {{ mediainfo }}
-                        </a><br>
+                        
                         {% endfor %}
+                    </p>
                     </td>
                     
                     <td>
