@@ -1,21 +1,242 @@
 import os
 import subprocess
-import requests
-from pathlib import Path
 import random
+from pathlib import Path
+import requests
+import logging
 from flask import Flask, request, jsonify, render_template_string
+
+# 配置日志
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[
+    logging.FileHandler("app.log"),
+    logging.StreamHandler()
+])
 
 app = Flask(__name__)
 
-# 初始化路径为空
+# 配置文件路径
+config_file = "config.txt"
+
+# 全局变量
 video_folder = ""
 output_folder = ""
 log_file = ""
 
-# 配置文件名
-config_file = "config.txt"
+# 模板
+html_template = """
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频处理应用</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 900px;
+            margin: 10px auto;
+            padding: 10px 20px 30px 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="number"], select {
+            width: 90%;
+            padding: 5px 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            display: inline-block;
+            padding: 5px 10px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 4px;
+            background-color: #28a745;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            max-width: 100%;
+            overflow-x: auto;
+        }
+        table, th, td {
+            border: 1px solid #ccc;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            max-width: 200px; /* 控制宽度以使溢出效果更明显 */
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        td {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 4;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .alert {
+            padding: 10px;
+            margin-top: 20px;
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            width: 90%;
+        }
+        .vip {
+            background: #B0E0E6;
+            width: 90%;
+            display: block;
+            margin-top: 20px;
+            padding: 5px;
+            text-indent: 10px;
+            border-radius: 4px;
+            border: 1px solid #b0f0e0;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            button {
+                width: 100%;
+                margin-top: 10px;
+            }
+        }
+    </style>
+    <script>
+        function copyText(button, text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            button.textContent = '已复制';
+        }
+    </script>
+    <script>
+    function deleteFolder(folderPath) {
+        fetch('/delete_folder', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                'folder_path': folderPath
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.status); // 这里会显示 "文件夹删除成功"
+            location.reload();  // 刷新页面以反映删除后的状态
+        })
+        .catch(error => console.error('Error:', error));
+    }
+</script>
+</head>
+<body>
+    <div class="container">
+        <h1>视频处理应用</h1>
+        <form action="/update_paths" method="post">
+            <label for="video_folder">视频文件夹:</label>
+            <input type="text" id="video_folder" name="video_folder" value="{{ video_folder }}">
 
-# 尝试加载已有配置
+            <label for="output_folder">输出文件夹:</label>
+            <input type="text" id="output_folder" name="output_folder" value="{{ output_folder }}">
+
+            <label for="log_file">日志文件:</label>
+            <input type="text" id="log_file" name="log_file" value="{{ log_file }}">
+
+            <button type="submit">更新路径</button>
+        </form>
+        <button onclick="location.reload()">刷新页面</button>
+        <button onclick="location.href='/process_videos';">生成任务</button>
+
+        <h2>处理过的文件夹</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>文件夹/文件名称</th>
+                    <th>缩略图</th>
+                    <th>复制缩略图</th>
+                    <th>复制mediainfo</th>
+                    <th>mediainfo 文件</th>
+                    
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for folder in folders %}
+                <tr>
+                    <td>{{ folder.folder_name }}{% if folder.is_video_file %} (视频文件){% endif %}</td>
+                    <td>
+                        {% for thumbnail in folder.thumbnails %}
+                        [img]{{ thumbnail }}[/img]<br>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        <button onclick="copyText(this, `{% for thumbnail in folder.thumbnails %}[img]{{ thumbnail }}[/img]\n{% endfor %}`)">
+                            复制缩略图
+                        </button>
+                    </td>
+                    <td>
+                        <button onclick="copyText(this, `{{ folder.mediainfo_content }}`)">
+                            复制 mediainfo
+                        </button>
+                    </td>
+                    <td>
+                        {% for mediainfo in folder.mediainfo_files %}
+                        <a href="{{ folder.folder_path }}/{{ mediainfo }}" target="_blank">
+                            {{ mediainfo }}
+                        </a><br>
+                        {% endfor %}
+                    </td>
+                    
+                    <td>
+                        <form action="/delete_folder" method="post">
+                            <input type="hidden" name="folder_path" value="{{ folder.folder_path }}">
+                            <button type="submit">删除</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
+"""
+
 def load_config():
     global video_folder, output_folder, log_file
     if os.path.exists(config_file):
@@ -25,8 +246,8 @@ def load_config():
                 video_folder = lines[0].strip()
                 output_folder = lines[1].strip()
                 log_file = lines[2].strip()
+    logging.debug(f"Loaded configuration: video_folder={video_folder}, output_folder={output_folder}, log_file={log_file}")
 
-# 检查并设置默认值
 def set_defaults():
     global video_folder, output_folder, log_file
     if not video_folder:
@@ -36,21 +257,35 @@ def set_defaults():
     if not log_file:
         log_file = "/home/pt/pic.log"
     save_config()
+    logging.debug(f"Set default configuration: video_folder={video_folder}, output_folder={output_folder}, log_file={log_file}")
 
-# 保存配置到文件
 def save_config():
     with open(config_file, 'w') as f:
         f.write(f"{video_folder}\n")
         f.write(f"{output_folder}\n")
         f.write(f"{log_file}\n")
+    logging.debug("Saved configuration")
 
-# 调用时加载配置
+def ensure_directories_and_files():
+    if not os.path.exists(video_folder):
+        os.makedirs(video_folder)
+        logging.debug(f"Created video folder: {video_folder}")
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+        logging.debug(f"Created output folder: {output_folder}")
+    if not os.path.exists(log_file):
+        open(log_file, 'a').close()
+        logging.debug(f"Created log file: {log_file}")
+
+# 加载配置并确保目录和文件存在
 load_config()
 set_defaults()
+ensure_directories_and_files()
 
 def log_entry(entry):
     with open(log_file, 'a') as log:
         log.write(entry + '\n')
+    logging.debug(f"Logged entry: {entry}")
 
 def is_logged(entry, folder_output_path):
     if not os.path.exists(log_file):
@@ -60,7 +295,6 @@ def is_logged(entry, folder_output_path):
         log_content = log.read()
 
     if entry in log_content:
-        # 检查缩略图和 mediainfo 文件是否存在且不为空
         thumbnails_file = os.path.join(folder_output_path, 'thumbnails.txt')
         mediainfo_files = [f for f in os.listdir(folder_output_path) if f.endswith('_mediainfo.txt')]
 
@@ -74,17 +308,89 @@ def is_logged(entry, folder_output_path):
             return False
     return False
 
+def get_processed_folders():
+    processed_folders = set()
+    folders_list = []
+
+    if os.path.exists(log_file):
+        with open(log_file, 'r') as log:
+            for line in log:
+                if "处理文件夹" in line or "处理文件" in line:
+                    folder_name = line.split(": ")[1].strip()
+                    folder_output_path = os.path.join(output_folder, folder_name)
+                    if os.path.exists(folder_output_path):
+                        thumbnails_file = os.path.join(folder_output_path, 'thumbnails.txt')
+                        mediainfo_files = [f for f in os.listdir(folder_output_path) if f.endswith('_mediainfo.txt')]
+
+                        thumbnails = []
+                        if os.path.exists(thumbnails_file):
+                            with open(thumbnails_file, 'r') as th_file:
+                                thumbnails = th_file.read().splitlines()
+
+                        mediainfo_content = ""
+                        if mediainfo_files:
+                            mediainfo_path = os.path.join(folder_output_path, mediainfo_files[0])
+                            with open(mediainfo_path, 'r') as mi_file:
+                                mediainfo_content = mi_file.read()
+
+                        folder_data = {
+                            'folder_name': folder_name,
+                            'thumbnails': thumbnails,
+                            'mediainfo_files': mediainfo_files,
+                            'mediainfo_content': mediainfo_content,
+                            'folder_path': folder_output_path,
+                            'is_video_file': "处理文件" in line
+                        }
+
+                        if folder_name not in processed_folders:
+                            processed_folders.add(folder_name)
+                            folders_list.append(folder_data)
+
+    logging.debug(f"Processed folders: {folders_list}")
+    return folders_list
+
+def clean_deleted_folders():
+    if not video_folder:
+        return
+
+    existing_folders = {folder_name for folder_name in os.listdir(video_folder) if os.path.isdir(os.path.join(video_folder, folder_name))}
+
+    for folder_name in os.listdir(output_folder):
+        folder_output_path = os.path.join(output_folder, folder_name)
+        if os.path.isdir(folder_output_path) and folder_name not in existing_folders:
+            delete_generated_files(folder_output_path)
+            logging.debug(f"Deleted non-existing folder: {folder_name}")
+
+    if os.path.exists(log_file):
+        with open(log_file, 'r') as log:
+            log_lines = log.readlines()
+
+        with open(log_file, 'w') as log:
+            for line in log_lines:
+                folder_name = line.split(": ")[-1].strip()
+                if folder_name in existing_folders:
+                    log.write(line)
+                else:
+                    logging.debug(f"Deleted log entry for non-existing folder: {folder_name}")
+
+def delete_generated_files(folder_output_path):
+    if os.path.exists(folder_output_path):
+        for file in os.listdir(folder_output_path):
+            os.remove(os.path.join(folder_output_path, file))
+        os.rmdir(folder_output_path)
+        logging.debug(f"Deleted folder and contents: {folder_output_path}")
+
 def save_mediainfo(video_path, output_path):
     try:
         mediainfo_command = ['mediainfo', video_path]
         mediainfo = subprocess.check_output(mediainfo_command, text=True)
         with open(output_path, 'w') as f:
             f.write(mediainfo)
-        print(f"已保存 mediainfo 到 {output_path}")
+        logging.debug(f"Saved mediainfo to {output_path}")
     except FileNotFoundError:
-        print(f"获取 mediainfo 时出错 {video_path}: mediainfo 命令未找到，请确保已安装 mediainfo。")
+        logging.error(f"Error getting mediainfo for {video_path}: mediainfo command not found")
     except Exception as e:
-        print(f"获取 mediainfo 时出错 {video_path}: {e}")
+        logging.error(f"Error getting mediainfo for {video_path}: {e}")
 
 def process_video(video_path, video_name, folder_output_path):
     try:
@@ -109,11 +415,9 @@ def process_video(video_path, video_name, folder_output_path):
                             pngquant_command = ['pngquant', '--force', '--ext', '.png', '--quality', '65-80', output_image]
                             subprocess.run(pngquant_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
                         except FileNotFoundError:
-                            print(f"处理视频 {video_path} 时出错: pngquant 未找到，请确保已安装 pngquant。")
-                            print("请执行以下命令进行安装：")
-                            print("sudo apt-get install pngquant")
+                            logging.error(f"Error processing video {video_path}: pngquant not found")
+                            logging.error("Please install pngquant using: sudo apt-get install pngquant")
 
-                    # 上传并记录缩略图地址
                     with open(output_image, 'rb') as img_file:
                         files = {'img': img_file}
                         data = {
@@ -126,10 +430,10 @@ def process_video(video_path, video_name, folder_output_path):
                         new_url = show_url.replace('https://pixhost.to/show/', 'https://img97.pixhost.to/images/')
                         with open(os.path.join(folder_output_path, 'thumbnails.txt'), 'a') as th_file:
                             th_file.write(f"{new_url}\n")
-                        print(f"已上传 {output_image} 到 {new_url}")
+                        logging.debug(f"Uploaded {output_image} to {new_url}")
 
                 except subprocess.CalledProcessError as e:
-                    print(f"处理视频 {video_path} 时出错: {e}")
+                    logging.error(f"Error processing video {video_path}: {e}")
                     break
 
         mediainfo_path = os.path.join(folder_output_path, f"{video_name}_mediainfo.txt")
@@ -137,139 +441,51 @@ def process_video(video_path, video_name, folder_output_path):
             save_mediainfo(video_path, mediainfo_path)
 
     except Exception as e:
-        print(f"处理视频 {video_path} 时出错: {e}")
+        logging.error(f"Error processing video {video_path}: {e}")
 
-def get_processed_folders():
-    processed_folders = set()
-    folders_list = []
+def process_folder(root, files):
+    folder_name = os.path.basename(root)
+    folder_output_path = os.path.join(output_folder, folder_name)
+    os.makedirs(folder_output_path, exist_ok=True)
 
-    if os.path.exists(log_file):
-        with open(log_file, 'r') as log:
-            for line in log:
-                if "处理文件夹" in line:
-                    folder_name = line.split(": ")[1].strip()
-                    folder_output_path = os.path.join(output_folder, folder_name)
-                    if os.path.exists(folder_output_path):
-                        thumbnails_file = os.path.join(folder_output_path, 'thumbnails.txt')
-                        mediainfo_files = [f for f in os.listdir(folder_output_path) if f.endswith('_mediainfo.txt')]
+    log_entry_text = f"处理文件夹: {folder_name}"
+    if is_logged(log_entry_text, folder_output_path):
+        logging.debug(f"{folder_name} 已经处理过，跳过...")
+        return
 
-                        thumbnails = []
-                        if os.path.exists(thumbnails_file):
-                            with open(thumbnails_file, 'r') as th_file:
-                                thumbnails = th_file.read().splitlines()
+    video_files = [os.path.join(root, f) for f in files if f.lower().endswith(('.mkv','.iso','.ts','.mp4','.avi','.rmvb','.wmv','.m2ts','.mpg','.flv','.rm','.mov'))]
 
-                        mediainfo_content = ""
-                        if mediainfo_files:
-                            mediainfo_path = os.path.join(folder_output_path, mediainfo_files[0])
-                            with open(mediainfo_path, 'r') as mi_file:
-                                mediainfo_content = mi_file.read()
+    if not video_files:
+        logging.debug(f"文件夹 {folder_name} 中没有找到视频文件，仍然创建文件夹。")
+        log_entry(log_entry_text)
+        return
 
-                        folder_data = {
-                            'folder_name': folder_name,
-                            'thumbnails': thumbnails,
-                            'mediainfo_files': mediainfo_files,
-                            'mediainfo_content': mediainfo_content,
-                            'folder_path': folder_output_path
-                        }
+    video_file = random.choice(video_files)
+    video_name = Path(video_file).stem
 
-                        if folder_name not in processed_folders:
-                            processed_folders.add(folder_name)
-                            folders_list.append(folder_data)
+    process_video(video_file, video_name, folder_output_path)
+    log_entry(log_entry_text)
 
-    return folders_list
+def process_all_videos(video_folder, output_folder):
+    # 处理根文件夹中的视频文件
+    for root, dirs, files in os.walk(video_folder):
+        if Path(root) == Path(video_folder):
+            video_files = [os.path.join(root, f) for f in files if f.lower().endswith(('.ts','.mp4', '.avi', '.mkv', '.mov', '.flv'))]
+            for video_file in video_files:
+                video_name = Path(video_file).stem
+                folder_output_path = os.path.join(output_folder, video_name)
+                os.makedirs(folder_output_path, exist_ok=True)
+                process_video(video_file, video_name, folder_output_path)
+                log_entry(f"处理文件: {video_name}")
 
-def delete_generated_files(folder_output_path):
-    if os.path.exists(folder_output_path):
-        for file in os.listdir(folder_output_path):
-            os.remove(os.path.join(folder_output_path, file))
-        os.rmdir(folder_output_path)
-
-# 定义 HTML 模板作为字符串
-html_template = """
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>视频处理应用</title>
-    <script>
-    function copyText(button, text) {
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        
-        // 将按钮文本内容变为 "OK"
-        button.textContent = 'OK';
-    }
-</script>
-</head>
-<body>
-    <h1>视频处理应用</h1>
-    <form action="/update_paths" method="post">
-        <label for="video_folder">视频文件夹:</label>
-        <input type="text" id="video_folder" name="video_folder" value="{{ video_folder }}"><br><br>
-        <label for="output_folder">输出文件夹:</label>
-        <input type="text" id="output_folder" name="output_folder" value="{{ output_folder }}"><br><br>
-        <label for="log_file">日志文件:</label>
-        <input type="text"         id="log_file" name="log_file" value="{{ log_file }}"><br><br>
-        <input type="submit" value="更新路径">
-    </form>
-    <button onclick="location.reload()">刷新页面</button>
-    <button onclick="location.href='/process_videos';">生成任务</button>
-
-    <h2>处理过的文件夹</h2>
-    <table border="1">
-        <tr>
-            <th>文件夹名称</th>
-            <th>缩略图</th>
-            <th>复制缩略图链接</th>
-            <th>mediainfo 文件</th>
-            <th>复制 mediainfo 内容</th>
-            <th>操作</th>
-        </tr>
-        {% for folder in folders %}
-        <tr>
-            <td>{{ folder.folder_name }}</td>
-            <td>
-                {% for thumbnail in folder.thumbnails %}
-                [img]{{ thumbnail }}[/img]<br>
-                {% endfor %}
-            </td>
-            <td>
-                <button onclick="copyText(this, `{% for thumbnail in folder.thumbnails %}[img]{{ thumbnail }}[/img]\n{% endfor %}`)">
-    复制缩略图
-</button>
-            </td>
-            <td>
-                {% for mediainfo in folder.mediainfo_files %}
-                <a href="{{ folder.folder_path }}/{{ mediainfo }}" target="_blank">
-                    {{ mediainfo }}
-                </a><br>
-                {% endfor %}
-            </td>
-            <td>
-                <button onclick="copyText(this, `{{ folder.mediainfo_content }}`)">
-    复制 mediainfo
-</button>
-            </td>
-            <td>
-                <form action="/delete_folder" method="post">
-                    <input type="hidden" name="folder_path" value="{{ folder.folder_path }}">
-                    <input type="submit" value="删除">
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
-</body>
-</html>
-"""
+    # 处理子文件夹中的第一个视频文件
+    for root, dirs, files in os.walk(video_folder):
+        if Path(root).parent == Path(video_folder):
+            process_folder(root, files)
 
 @app.route('/')
 def index():
+    logging.debug("Rendering index page")
     folders = get_processed_folders()
     return render_template_string(html_template, video_folder=video_folder, output_folder=output_folder, log_file=log_file, folders=folders)
 
@@ -280,92 +496,35 @@ def update_paths():
     output_folder = request.form['output_folder']
     log_file = request.form['log_file']
 
-    # 如果output_folder不存在，创建它
     if output_folder and not os.path.exists(output_folder):
         os.makedirs(output_folder, exist_ok=True)
-        print(f"已创建输出文件夹: {output_folder}")
+        logging.debug(f"Created output folder: {output_folder}")
 
     save_config()
+    ensure_directories_and_files()
+    logging.debug("Configuration updated")
 
     folders = get_processed_folders()
 
     return render_template_string(html_template, video_folder=video_folder, output_folder=output_folder, log_file=log_file, folders=folders)
-
-def process_folder(root, files):
-    folder_name = os.path.basename(root)
-    folder_output_path = os.path.join(output_folder, folder_name)
-    os.makedirs(folder_output_path, exist_ok=True)
-
-    log_entry_text = f"处理文件夹: {folder_name}"
-    if is_logged(log_entry_text, folder_output_path):
-        print(f"{folder_name} 已经处理过，跳过...")
-        return
-
-    video_files = [os.path.join(root, f) for f in files if f.lower().endswith(('.ts','.mp4', '.avi', '.mkv', '.mov', '.flv'))]
-
-    if not video_files:
-        print(f"文件夹 {folder_name} 中没有找到视频文件，仍然创建文件夹。")
-        log_entry(log_entry_text)  # 即使没有视频文件，也记录文件夹已处理过
-        return
-
-    video_file = random.choice(video_files)
-    video_name = Path(video_file).stem
-
-    # 处理视频
-    process_video(video_file, video_name, folder_output_path)
-    log_entry(log_entry_text)
 
 @app.route('/process_videos', methods=['GET'])
 def process_videos():
-    # 检查并删除已删除的文件夹及其对应的记录和输出
+    logging.debug("Processing videos")
     clean_deleted_folders()
-    
-    for root, dirs, files in os.walk(video_folder):
-        if Path(root).parent == Path(video_folder) or Path(root) == Path(video_folder):
-            process_folder(root, files)
-
+    process_all_videos(video_folder, output_folder)
     folders = get_processed_folders()
     return render_template_string(html_template, video_folder=video_folder, output_folder=output_folder, log_file=log_file, folders=folders)
-
-def clean_deleted_folders():
-    # 获取video_folder中的所有文件夹名称
-    existing_folders = {folder_name for folder_name in os.listdir(video_folder) if os.path.isdir(os.path.join(video_folder, folder_name))}
-
-    # 检查output_folder中的文件夹，并删除那些不在video_folder中的文件夹
-    for folder_name in os.listdir(output_folder):
-        folder_output_path = os.path.join(output_folder, folder_name)
-        if os.path.isdir(folder_output_path) and folder_name not in existing_folders:
-            # 删除output_folder中的文件夹
-            delete_generated_files(folder_output_path)
-            print(f"删除了不再存在的文件夹: {folder_name}")
-
-    # 清理日志文件中的记录
-    if os.path.exists(log_file):
-        with open(log_file, 'r') as log:
-            log_lines = log.readlines()
-
-        with open(log_file, 'w') as log:
-            for line in log_lines:
-                folder_name = line.split(": ")[-1].strip()
-                if folder_name in existing_folders:
-                    log.write(line)
-                else:
-                    print(f"删除了日志中的记录: {folder_name}")
-
-                    
-# 定义 delete_generated_files 函数
-def delete_generated_files(folder_output_path):
-    if os.path.exists(folder_output_path):
-        for file in os.listdir(folder_output_path):
-            os.remove(os.path.join(folder_output_path, file))
-        os.rmdir(folder_output_path)
-        print(f"已删除 {folder_output_path} 文件夹及其内容")
 
 @app.route('/delete_folder', methods=['POST'])
 def delete_folder():
     folder_path = request.form['folder_path']
     delete_generated_files(folder_path)
+    logging.debug(f"Deleted folder: {folder_path}")
+    
+    # 直接返回成功消息
     return jsonify(status="文件夹删除成功")
 
 if __name__ == '__main__':
+    logging.debug("Starting Flask application")
     app.run(debug=True, host='0.0.0.0', port=45678)
