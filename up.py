@@ -437,7 +437,7 @@ def process_video(video_path, video_name, folder_output_path):
                         response = requests.post('https://api.pixhost.to/images', files=files, data=data)
                         response_data = response.json()
                         show_url = response_data['show_url']
-                        new_url = show_url.replace('https://pixhost.to/show/', 'https://img97.pixhost.to/images/')
+                        new_url = show_url.replace('https://pixhost.to/show/', 'https://img99.pixhost.to/images/')
                         with open(os.path.join(folder_output_path, 'thumbnails.txt'), 'a') as th_file:
                             th_file.write(f"{new_url}\n")
                         logging.debug(f"Uploaded {output_image} to {new_url}")
