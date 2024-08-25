@@ -90,20 +90,24 @@ html_template = """
             border: 1px solid #ccc;
         }
         th, td {
-            padding: 10px;
+            padding: 0px 4px;
             text-align: left;
-            max-width: 200px; /* 控制宽度以使溢出效果更明显 */
+            max-width: 200px;
+            min-width: 60px;
         }
         th {
             background-color: #f4f4f4;
         }
-        td {
-            display: -webkit-box;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 4;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+        
+         .p{
+                display: -webkit-box;
+                -webkit-line-clamp: 4;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-height: 56em;
+                line-height: 1.2em;
+            } 
         .alert {
             padding: 10px;
             margin-top: 20px;
@@ -198,11 +202,15 @@ html_template = """
             <tbody>
                 {% for folder in folders %}
                 <tr>
-                    <td>{{ folder.folder_name }}{% if folder.is_video_file %} (视频文件){% endif %}</td>
                     <td>
-                        {% for thumbnail in folder.thumbnails %}
+                        <p class="p">{{ folder.folder_name }}{% if folder.is_video_file %} (视频文件){% endif %}
+                        </p>
+                    </td>
+                    <td>
+                        <p class="p">{% for thumbnail in folder.thumbnails %}
                         [img]{{ thumbnail }}[/img]<br>
                         {% endfor %}
+                        </p>
                     </td>
                     <td>
                         <button onclick="copyText(this, `{% for thumbnail in folder.thumbnails %}[img]{{ thumbnail }}[/img]\n{% endfor %}`)">
