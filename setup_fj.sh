@@ -19,17 +19,12 @@ echo "| 正在安装Docker                              |"
 echo "+---------------------------------------------+"
 if ! command -v docker &> /dev/null; then
           echo "Docker 未安装,现在开始安装。"
-           if ! command -v curl &> /dev/null; then
-          echo "curl 未安装,现在开始安装。"
-          sudo apt-get install -y curl
-        fi     
-curl -fsSL https://get.docker.com -o get-docker.sh
-sh get-docker.sh
-      fi 
-if [ $? -ne 0 ]; then
-    echo "安装Docker失败，脚本退出"
-    exit 1
-fi
+          
+apt update
+apt install -y docker docker.io  apparmor
+
+fi 
+
 
 echo "+---------------------------------------------+"
 echo "| 更改时区                                    |"
@@ -64,7 +59,7 @@ fi
 echo "+---------------------------------------------+"
 echo "| 正在删除残留文件                            |"
 echo "+---------------------------------------------+"
-rm -rf /root/get-docker.sh /root/fj_admin/qb/qb.tar.gz  /root/fj_admin/fb/fb.tar.gz  /root/fj_admin/vt/vt.tar.gz
+rm -rf /root/fj_admin/qb/qb.tar.gz  /root/fj_admin/fb/fb.tar.gz  /root/fj_admin/vt/vt.tar.gz
 
 
 if [ $? -ne 0 ]; then
