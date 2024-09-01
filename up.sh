@@ -2,7 +2,8 @@
 
 sudo apt-get update
 if ! command -v pip3 &> /dev/null; then apt-get install -y python3-pip; fi
-pip install Flask
+pip install Flask requests
+
 sudo apt install -y ffmpeg mediainfo pngquant
 
 wget -P /root  https://github.com/lifujie25/lifj/raw/main/up.py
