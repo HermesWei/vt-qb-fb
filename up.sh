@@ -2,7 +2,8 @@
 
 sudo apt-get update
 if ! command -v pip3 &> /dev/null; then apt-get install -y python3-pip; fi
-pip install Flask requests
+#pip install Flask requests
+sudo apt install python3-flask python3-requests
 
 sudo apt install -y ffmpeg mediainfo pngquant
 
