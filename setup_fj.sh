@@ -80,7 +80,7 @@ echo "| 重启所有Docker容器                          |"
 echo "+---------------------------------------------+"
 docker restart $(docker ps -q)
 
-bash <(wget -qO- https://raw.githubusercontent.com/guowanghushifu/Dedicated-Seedbox-Mod/main/Install.sh) -u admin -p admin -c 1024 -q 5.0.4 -l v1.2.20 -y
+bash <(wget -qO- https://raw.githubusercontent.com/guowanghushifu/Dedicated-Seedbox-Mod/main/Install.sh) -u admin -p Qwe123123!@# -c 1024 -q 5.0.4 -l v1.2.20 -y
 
 echo "+---------------------------------------------+"
 echo "| 脚本执行完毕！                              |"
